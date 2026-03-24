@@ -1,0 +1,103 @@
+import cv2
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
+
+# --- CONFIGURACIÓN ---
+PATH_DATASET = "ruta/a/tu/dataset"  # Cambia esto por tu carpeta de imágenes
+PATH_MODEL = "hand_landmarker.task"
+NUM_SAMPLES = 500  # Número de imágenes a auditar
+
+# Definición de la Escala Monk (Valores RGB oficiales)
+MONK_SCALE = {
+    1: (246, 237, 228), 2: (243, 231, 219), 3: (247, 234, 208),
+    4: (234, 206, 175), 5: (216, 178, 143), 6: (188, 146, 115),
+    7: (153, 108, 81),  8: (111, 71, 49),   9: (66, 46, 35), 10: (43, 30, 22)
+}
+
+
+# --- FUNCIÓN AUXILIAR: Encontrar el tono Monk más cercano ---
+def get_closest_mst(rgb_color):
+    distances = {}
+    for level, mst_rgb in MONK_SCALE.items():
+        # Distancia euclidiana entre colores
+        dist = np.linalg.norm(np.array(rgb_color) - np.array(mst_rgb))
+        distances[level] = dist
+    return min(distances, key=distances.get)
+
+
+# --- INICIALIZAR MEDIAPIPE TASKS ---
+base_options = python.BaseOptions(model_asset_path=PATH_MODEL)
+options = vision.HandLandmarkerOptions(base_options=base_options, num_hands=1)
+detector = vision.HandLandmarker.create_from_options(options)
+
+
+# --- PROCESAMIENTO ---
+resultados = []
+listado_archivos = [f for f in os.listdir(PATH_DATASET) if f.endswith((".jpg", ".png", ".jpeg"))]
+
+print(f"Iniciando auditoría de {min(NUM_SAMPLES, len(listado_archivos))} imágenes...")
+
+for i, nombre_archivo in enumerate(listado_archivos[:NUM_SAMPLES]):
+    img_path = os.path.join(PATH_DATASET, nombre_archivo)
+    image = cv2.imread(img_path)
+    if image is None:
+        continue
+
+    image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image_rgb)
+
+    # Detectar landmarks
+    detection_result = detector.detect(mp_image)
+
+    if detection_result.hand_landmarks:
+        # Tomamos el landmark 9 (centro de la palma)
+        lm = detection_result.hand_landmarks[0][9]
+        h, w, _ = image.shape
+        cx, cy = int(lm.x * w), int(lm.y * h)
+
+        # Extraer color de un pequeño parche (evitar ruido)
+        try:
+            roi = image_rgb[cy - 5:cy + 5, cx - 5:cx + 5]
+            avg_color = roi.mean(axis=(0, 1))
+
+            mst_level = get_closest_mst(avg_color)
+            resultados.append({"archivo": nombre_archivo, "mst_score": mst_level})
+        except:
+            continue
+
+    if i % 50 == 0:
+        print(f"Procesadas {i} imágenes...")
+
+
+# --- CREAR DATAFRAME Y VISUALIZAR ---
+df = pd.DataFrame(resultados)
+
+# Tu código de visualización integrado:
+if not df.empty:
+    # Aseguramos que todos los niveles (1-10) existan en el gráfico aunque tengan 0
+    df["mst_score"] = pd.Categorical(df["mst_score"], categories=range(1, 11))
+    conteo_tonos = df["mst_score"].value_counts().sort_index()
+
+    plt.figure(figsize=(12, 6))
+    colores_hex = [
+        "#F6EDE4", "#F3E7DB", "#F7EACE", "#EACEAF", "#D8B28F",
+        "#BC9273", "#996C51", "#6F4731", "#422E23", "#2B1E16"
+    ]
+
+    conteo_tonos.plot(kind="bar", color=colores_hex, edgecolor="black")
+
+    plt.title("Distribución de Tonos de Piel (Escala Monk) - Auditoría Automática")
+    plt.xlabel("Escala MST (Google Monk Skin Tone)")
+    plt.ylabel("Número de Imágenes")
+    plt.grid(axis="y", linestyle="--", alpha=0.7)
+    plt.savefig("reporte_diversidad_final.png")
+    plt.show()
+
+    print("Análisis completado. Gráfico guardado como 'reporte_diversidad_final.png'")
+else:
+    print("No se detectaron manos en las imágenes procesadas.")

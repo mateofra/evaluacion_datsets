@@ -210,6 +210,8 @@ def load_hagrid_records(args):
             race = (meta.get("race") or [None])[0]
             gender = (meta.get("gender") or [None])[0]
             age = (meta.get("age") or [None])[0]
+            leading_hand = info.get("leading_hand")
+            bboxes = info.get("bboxes") or []
             race_counter[str(race)] += 1 if race is not None else 0
 
             mst_range = race_to_mst_range(race)
@@ -230,6 +232,9 @@ def load_hagrid_records(args):
                 "race": race,
                 "gender": gender,
                 "age": age,
+                "leading_hand": leading_hand,
+                "num_bboxes": int(len(bboxes)),
+                "num_hands_detected": int(len(hand_landmarks)) if hand_landmarks else 0,
                 "hand_scale": np.nan,
                 "landmark_source": "mediapipe_2d",
             }
@@ -279,6 +284,9 @@ def load_freihand_records(path_csv, max_samples=None, seed=42):
             "race": None,
             "gender": None,
             "age": None,
+            "leading_hand": None,
+            "num_bboxes": np.nan,
+            "num_hands_detected": np.nan,
             "hand_scale": df.get("hand_scale"),
             "landmark_source": "freihand_3d_projected",
         }

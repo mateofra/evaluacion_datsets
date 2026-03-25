@@ -10,4 +10,5 @@ dependencies = [
 	"matplotlib",
 	"opencv-python",
 	"mediapipe",
+	"kaggle>=2.0.0",
 ]

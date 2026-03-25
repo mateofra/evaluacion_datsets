@@ -2,11 +2,11 @@
 
 ## Configuracion de auditoria
 - Universo analizado: primeras 32560 imagenes de entrenamiento (fondo verde).
-- Muestra aleatoria: 5000 imagenes.
+- Muestra aleatoria: 20000 imagenes.
 - Punto usado para piel: landmark 9 (centro de palma).
 
 ## Hallazgo de sesgo de tono
-- Proporcion MST 1-4 en la muestra: 5.50% (275/5000).
+- Proporcion MST 1-4 en la muestra: 5.49% (1098/20000).
 - Interpretacion: el dataset FreiHAND presenta concentracion en tonos claros.
 - Accion recomendada: complementar con un dataset mas diverso en tono de piel (por ejemplo HAGRID o 11K Hands).
 
